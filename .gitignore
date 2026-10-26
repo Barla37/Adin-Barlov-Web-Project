@@ -1,0 +1,15 @@
+# Secrets
+backend/config/config.php
+
+# Logs
+backend/logs/*.log
+
+# Composer
+backend/vendor/
+vendor/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
