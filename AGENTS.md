@@ -10,7 +10,7 @@ trainers, group classes, bookings). University project for IT 2001 Web Programmi
 
 ## Technology stack
 
-- Backend: PHP 8.2+, FlightPHP, PDO, MySQL/MariaDB, firebase/php-jwt(planned, milestone 4)
+- Backend: PHP 8.2+, FlightPHP, PDO, MySQL/MariaDB, firebase/php-jwt (planned, milestone 4), swagger-php (zircote/swagger-php)
 - Frontend: plain HTML, CSS, JavaScript (no frameworks), Bootstrap 5, Highcharts, DataTables(planned)
 - API documentation: OpenAPI (Swagger UI)
 - Local environment: XAMPP
@@ -23,7 +23,7 @@ trainers, group classes, bookings). University project for IT 2001 Web Programmi
    - Routes: HTTP in, JSON out. No SQL, no business rules.
    - Services: business logic and validation. The only layer that calls DAOs.
    - DAOs: PDO with prepared statements only. No business rules, no `Flight::json`.
-3. All DAOs extend a `BaseDao` with reusable CRUD methods.
+3. All DAOs extend `BaseDao` (`backend/rest/dao/BaseDao.php`), which provides `get_all`, `get_by_id`, `add`, `update`, `delete` and transactions. Entity DAOs add only their own queries. Each DAO passes its table name and a whitelist of writable columns to the `BaseDao` constructor.
 4. Middleware (auth, role check, request logging, error handling) is registered in
    FlightPHP and reused, never copied into routes.
 5. Frontend is a SPA with a hash router; templates live in `frontend/views/`.
@@ -33,6 +33,23 @@ trainers, group classes, bookings). University project for IT 2001 Web Programmi
 7. Logs: `backend/logs/info.log` and `backend/logs/error.log`. Errors returned to the
    client never include stack traces, SQL or file paths.
 8. Return correct HTTP status codes: 200, 201, 400, 401, 403, 404, 500.
+
+## Service, route and API rules (Milestone 3)
+
+- Services extend `BaseService` (`backend/rest/services/BaseService.php`) and receive their DAOs in the constructor (`$dao ?? new XxxDao()`), so tests can pass fake DAOs. Only services call DAOs.
+- A broken rule is signalled with an exception from `backend/utils/exceptions.php`, never by returning false: `ValidationException` (400), `NotFoundException` (404), `UnauthorizedException` (401), `ForbiddenException` (403), `ExternalServiceException` (503). Reuse `Validator` for input checks.
+- Rules that the client must not control (booking status, hashes, capacities) are set by the service and never taken from the request.
+- A route does three things: read the input, call ONE service method, answer with `Flight::json($data, $status)`. No SQL, no `try/catch`, no business rules. Errors are turned into JSON once, in `Flight::map('error', ...)` in `index.php`; unexpected errors are logged and answered with a general 500 message.
+- Routes: plural kebab-case nouns, `@id:[0-9]+` for ids, `201` after POST, `PUT` and `PATCH` both update. No verbs in URLs.
+- The external API (wger) is called only from `ExerciseService`: with a timeout, failures logged to `backend/logs/error.log`, answered with 503. API keys are never logged or sent to the client.
+- Every route has a matching method with `#[OA\...]` attributes in `backend/public/v1/docs/paths/`. Change the route and its documentation in the same commit; list every status code the route can return. Use `{id}` (not `@id`) in OpenAPI paths.
+
+## Database rules
+
+- Schema and sample data live in `database/gym_app.sql` (re-runnable: drops and recreates tables). Any schema change must be made in that file and mirrored in `docs/ERD.md`.
+- Enforce integrity in the database: PKs, FKs (`ON DELETE` chosen deliberately), UNIQUE and CHECK constraints.
+- Table names in DAO queries are fixed strings in code, never user input. Values always go through placeholders. `LIMIT` values are cast to `(int)`.
+- DB config is read through the `Config` class (`backend/config/config.php`, git-ignored). Values may be overridden by environment variables.
 
 ## Folder structure
 
@@ -45,7 +62,7 @@ database/  docs/
 ## Naming conventions
 
 - PHP classes: `PascalCase` (`BookingService`, `BookingDao`, `BookingRoutes`); files match class names.
-- PHP methods/variables: `camelCase`. Start every file with `declare(strict_types=1);`.
+- PHP methods/variables: `snake_case` (`get_by_email`, `$user_id`), as in the course labs. Constants and `Config` getters follow the lab style (`Config::DB_HOST()`).
 - DB tables: plural `snake_case` (`membership_plans`); columns `snake_case`; PK `id`; FK `<entity>_id`.
 - API routes: plural nouns, lowercase (`GET /bookings`, `GET /bookings/@id`).
 - Frontend files: `kebab-case` (`my-bookings.html`); JS functions `camelCase`.
