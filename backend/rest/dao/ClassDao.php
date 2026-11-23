@@ -57,4 +57,10 @@ class ClassDao extends BaseDao
             ['trainer_id' => $trainer_id]
         );
     }
+
+    /** All classes in one room (the service checks for overlapping times). */
+    public function get_by_room($room)
+    {
+        return $this->query("SELECT * FROM classes WHERE room = :room", ['room' => $room]);
+    }
 }

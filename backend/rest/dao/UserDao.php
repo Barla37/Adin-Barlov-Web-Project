@@ -8,7 +8,21 @@ class UserDao extends BaseDao
         parent::__construct('users', ['first_name', 'last_name', 'email', 'password_hash', 'phone', 'role']);
     }
 
-    /** Used by login (milestone 4). */
+    private const SAFE_COLUMNS = "id, first_name, last_name, email, phone, role, created_at";
+
+    /** Overrides BaseDao: the password hash is never returned (login uses get_by_email). */
+    public function get_all()
+    {
+        return $this->query("SELECT " . self::SAFE_COLUMNS . " FROM users ORDER BY id");
+    }
+
+    /** Overrides BaseDao: the password hash is never returned (login uses get_by_email). */
+    public function get_by_id($id)
+    {
+        return $this->query_unique("SELECT " . self::SAFE_COLUMNS . " FROM users WHERE id = :id", ['id' => $id]);
+    }
+
+    /** Used by login (milestone 4). This is the ONLY method that returns the password hash. */
     public function get_by_email($email)
     {
         return $this->query_unique("SELECT * FROM users WHERE email = :email", ['email' => $email]);

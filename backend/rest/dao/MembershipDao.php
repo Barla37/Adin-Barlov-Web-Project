@@ -21,6 +21,30 @@ class MembershipDao extends BaseDao
         );
     }
 
+    /** One membership with member name and plan name, or null. */
+    public function get_details_by_id($id)
+    {
+        return $this->query_unique(
+            "SELECT m.id, m.user_id, u.first_name, u.last_name, m.plan_id, p.name AS plan_name,
+                    m.start_date, m.end_date, m.status
+             FROM memberships m
+             JOIN users u ON u.id = m.user_id
+             JOIN membership_plans p ON p.id = m.plan_id
+             WHERE m.id = :id",
+            ['id' => $id]
+        );
+    }
+
+    /** How many memberships use this plan (a plan that is in use cannot be deleted). */
+    public function count_by_plan($plan_id)
+    {
+        $row = $this->query_unique(
+            "SELECT COUNT(*) AS total FROM memberships WHERE plan_id = :plan_id",
+            ['plan_id' => $plan_id]
+        );
+        return (int) $row['total'];
+    }
+
     /** All memberships of one user, newest first. */
     public function get_by_user($user_id)
     {
@@ -38,7 +62,7 @@ class MembershipDao extends BaseDao
     public function get_active_by_user($user_id)
     {
         return $this->query_unique(
-            "SELECT m.*, p.name AS plan_name
+            "SELECT m.*, p.name AS plan_name, p.includes_classes
              FROM memberships m
              JOIN membership_plans p ON p.id = m.plan_id
              WHERE m.user_id = :user_id AND m.status = 'active'
